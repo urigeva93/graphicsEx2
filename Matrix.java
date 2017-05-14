@@ -21,7 +21,7 @@ public class Matrix {
 			}
 		}
 		
-		//filling mat with roatation values respectively to dim
+		//filling mat with rotation values respectively to dim
 		if (dim == 1) {
 			this.mat[1][1] = Math.cos(deg);
 			this.mat[1][2] = -Math.sin(deg);
