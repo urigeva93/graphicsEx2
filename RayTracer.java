@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Main class for ray tracing exercise.
@@ -16,16 +17,15 @@ public class RayTracer {
 
     public int imageWidth;
     public int imageHeight;
-    public int shadowRays;
-    public int maxRecLvl;
-    public int superSamplingLvl;
+    public Scene scene;
+    public Camera camera;
     List<Surface> surfaces;
     List<Material> materials;
     List<Light> lights;
-    public Color backgroundColor;
-    public Camera camera;
+
 
     public RayTracer() {
+
         this.surfaces = new ArrayList<>();
         this.materials = new ArrayList<>();
         this.lights = new ArrayList<>();
@@ -112,7 +112,7 @@ public class RayTracer {
         FileReader fr = new FileReader(sceneFileName);
 
         BufferedReader r = new BufferedReader(fr);
-        String line = null;
+        String line;
         int lineNum = 0;
         System.out.println("Started parsing scene file " + sceneFileName);
 
@@ -147,11 +147,14 @@ public class RayTracer {
 
                     RayColor backgroundRayColor = new RayColor(Double.parseDouble(params[0]),
                             Double.parseDouble(params[1]), Double.parseDouble(params[2]));
-                    this.backgroundColor = new Color();
-                    this.backgroundColor.multiplyRayColor(backgroundRayColor);
-                    this.shadowRays = Integer.parseInt(params[3]);
-                    this.maxRecLvl = Integer.parseInt(params[4]);
-                    this.superSamplingLvl = Integer.parseInt(params[5]);
+                    Color backgroundColor = new Color();
+                    backgroundColor.multiplyRayColor(backgroundRayColor);
+                    int shadowRays = Integer.parseInt(params[3]);
+                    int maxRecLvl = Integer.parseInt(params[4]);
+                    int superSamplingLvl = 0;
+                    if(params.length > 5)
+                        superSamplingLvl = Integer.parseInt(params[5]);
+                    this.scene = new Scene(shadowRays, maxRecLvl, superSamplingLvl, backgroundColor);
 
                     System.out.println(String.format("Parsed general settings (line %d)", lineNum));
                 } else if (code.equals("mtl")) {
@@ -201,7 +204,7 @@ public class RayTracer {
                     Vector v3 = new Vector(Double.parseDouble(params[6]), Double.parseDouble(params[7]), Double.parseDouble(params[8]));
                     int materialIndex = Integer.parseInt(params[9]);
 
-                    Traingle trg = new Traingle(v1, v2, v3, materialIndex);
+                    Triangle trg = new Triangle(v1, v2, v3, materialIndex);
 
                     this.surfaces.add(trg);
 
@@ -231,10 +234,9 @@ public class RayTracer {
         // It is recommended that you check here that the scene is valid,
         // for example camera settings and all necessary materials were defined.
 
-        if (this.camera == null || this.materials.isEmpty() || this.lights.isEmpty() || this.surfaces.isEmpty() ||
-            this.shadowRays == 0 || this.superSamplingLvl == 0 || this.maxRecLvl == 0 || this.backgroundColor == null) {
-            throw new RayTracerException("ERROR: one or more necessary scene parameters weren't inserted");
-        }
+        if (this.camera == null || this.materials.isEmpty() || this.lights.isEmpty() || this.surfaces.isEmpty() || this.scene == null)
+            throw new RayTracerException("ERROR: one or more necessary scene parameters weren't inserted or recognized");
+
 
         System.out.println("Finished parsing scene file " + sceneFileName);
 
@@ -243,27 +245,28 @@ public class RayTracer {
     /**
      * Renders the loaded scene and saves it to the specified file location.
      */
-    public void renderScene(String outputFileName) {
+    public void renderScene(String outputFileName) throws RayTracerException {
         long startTime = System.currentTimeMillis();
 
         // Create a byte array to hold the pixel data:
         byte[] rgbData = new byte[this.imageWidth * this.imageHeight * 3];
+        Ray ray;
+        Color pixel;
 
-
-        // Put your ray tracing code here!
-        //
-        // Write pixel color values in RGB format to rgbData:
-        // Pixel [x, y] red component is in rgbData[(y * this.imageWidth + x) * 3]
-        //            green component is in rgbData[(y * this.imageWidth + x) * 3 + 1]
-        //             blue component is in rgbData[(y * this.imageWidth + x) * 3 + 2]
-        //
-        // Each of the red, green and blue components should be a byte, i.e. 0-255
-
+        for (int i = 0; i < this.imageWidth; i++) {
+            for (int j = 0; j < this.imageHeight; j++) {
+                ray = constructRayThroughPixel(camera, i, j);
+                pixel = getPixelColor(ray, this.scene.maxRecLvl, null);
+                rgbData[(j * this.imageWidth + i) * 3] = (byte) pixel.red;
+                rgbData[(j * this.imageWidth + i) * 3 + 1] = (byte) pixel.green;
+                rgbData[(j * this.imageWidth + i) * 3 + 2] = (byte) pixel.blue;
+            }
+        }
 
         long endTime = System.currentTimeMillis();
         Long renderTime = endTime - startTime;
 
-        // The time is measured for your own conveniece, rendering speed will not affect your score
+        // The time is measured for your own convenience, rendering speed will not affect your score
         // unless it is exceptionally slow (more than a couple of minutes)
         System.out.println("Finished rendering scene in " + renderTime.toString() + " milliseconds.");
 
@@ -271,7 +274,304 @@ public class RayTracer {
         saveImage(this.imageWidth, rgbData, outputFileName);
 
         System.out.println("Saved file " + outputFileName);
+    }
 
+    private Ray constructRayThroughPixel(Camera camera, int i, int j) {
+
+        Vector pixel = camera.getCenterOfScreen();
+
+        double pixelWidth = camera.screenWidth / this.imageWidth;
+        double deltaX = ((double) this.imageWidth / 2 - i) * pixelWidth;
+        double deltaY = ((double) this.imageHeight / 2 - j) * pixelWidth;
+
+        Vector yVec = new Vector(camera.upVector);
+        yVec.normalize();
+        yVec.multiplyByScalar(deltaY);
+        pixel.add(yVec);
+
+        Vector xVec = new Vector(camera.direction);
+        xVec.crossProduct(camera.upVector);
+        xVec.normalize();
+        xVec.multiplyByScalar(deltaX);
+        pixel.add(xVec);
+
+        Vector pixelDirec = new Vector(pixel);
+        pixelDirec.substract(camera.position);
+        pixelDirec.normalize();
+
+        Ray ray = new Ray(pixel, pixelDirec);
+        return ray;
+    }
+
+    private Color getPixelColor(Ray ray, int maxRecLvl, Surface originSurface) throws RayTracerException {
+
+        if (maxRecLvl == 0)
+            return new Color(0, 0, 0);
+
+        double minDestFromSurface = 0, minDestFromLight = 0;
+        Vector intersectionPointWithSurface = null, intersectionPointWithLight = null;
+        SurfaceIntersection surfaceInter = this.findClosestIntersectionWithSurface(ray, originSurface);
+        LightIntersection lightInter = this.findClosestIntersectionWithLight(ray);
+
+        if (surfaceInter != null) {
+            minDestFromSurface = surfaceInter.dist;
+            intersectionPointWithSurface = surfaceInter.intersection;
+        }
+
+        if (lightInter != null) {
+            minDestFromLight = lightInter.distance;
+            intersectionPointWithLight = lightInter.intersection;
+        }
+
+        Boolean ifLight = (intersectionPointWithLight != null) && (intersectionPointWithSurface == null || minDestFromLight < minDestFromSurface);
+        //Boolean ifSurface = (intersectionPointWithSurface != null) && (intersectionPointWithLight == null || minDestFromSurface < minDestFromLight);
+        Boolean ifSurface = intersectionPointWithSurface != null;
+
+        //if (ifLight == ifSurface)
+           // throw new RayTracerException("ERROR: intersection both with surface and light");
+
+        if (ifSurface) {
+
+            double transparency = this.materials.get(surfaceInter.surface.getMaterialIndex() - 1).transparency;
+            RayColor materialReflectionColor = this.materials.get(surfaceInter.surface.getMaterialIndex() - 1).reflectionColor;
+
+            Color diffuseColor = this.getDiffuseColor(surfaceInter);
+            Color specularColor = this.getSpecularColor(surfaceInter, ray.direction);
+
+            Color c = new Color(diffuseColor);
+            c.add(specularColor);
+            c.multiplyScalar(1 - transparency);
+            Color res = new Color(c);
+
+            if (!materialReflectionColor.isAllZero()) {
+                Ray reflectionRay = surfaceInter.surface.getReflectionRay(surfaceInter.intersection, ray);
+                Color reflectionColor = this.getPixelColor(reflectionRay, maxRecLvl - 1, surfaceInter.surface);
+                reflectionColor.multiplyRayColor(materialReflectionColor);
+                res.add(reflectionColor);
+            }
+
+            if (transparency != 0) {
+                Ray transparencyRay = surfaceInter.surface.getReflectionRay(surfaceInter.intersection, ray);
+                Color transparencyColor = this.getPixelColor(transparencyRay, maxRecLvl - 1, surfaceInter.surface);
+                transparencyColor.multiplyScalar(transparency);
+                res.add(transparencyColor);
+            }
+            res.normalizeColor();
+            return res;
+
+        } else {
+
+            //if (ifLight)
+                System.out.println("intersect with light");
+            //else
+                return new Color(this.scene.backgroundColor);
+        }
+    }
+
+    private SurfaceIntersection findClosestIntersectionWithSurface(Ray ray, Surface originSurface) {
+        double minDestFromSurface = Double.POSITIVE_INFINITY;
+        Surface intersectionSurface = null;
+        Vector IntersectionCand, IntersectionPoint = null;
+
+        for (int i = 0; i < this.surfaces.size(); i++) {
+
+            if (originSurface == this.surfaces.get(i))
+                continue;
+
+            IntersectionCand = this.surfaces.get(i).getItersectionPointWithRay(ray);
+            if (IntersectionCand != null && minDestFromSurface > ray.getDestFromPoint(IntersectionCand)) {
+                IntersectionPoint = IntersectionCand;
+                minDestFromSurface = ray.getDestFromPoint(IntersectionPoint);
+                intersectionSurface = this.surfaces.get(i);
+            }
+        }
+
+
+        if (intersectionSurface == null) {
+            return null;
+        }
+        return new SurfaceIntersection(intersectionSurface, IntersectionPoint, minDestFromSurface);
+    }
+
+    public LightIntersection findClosestIntersectionWithLight(Ray ray) {
+        double minDestFromLight = Double.POSITIVE_INFINITY;
+        Light intersectionLight = null;
+        Vector IntersectionCand, IntersectionPoint = null;
+
+        for (int i = 0; i < this.lights.size(); i++) {
+
+            if (this.lights.get(i).hasItersectionPointWithRay(ray)) {
+                IntersectionCand = new Vector(this.lights.get(i).position);
+                IntersectionCand.substract(ray.start);
+                if (IntersectionCand != null && minDestFromLight > IntersectionCand.getNorma() && IntersectionCand.getNorma() > 0) {
+                    minDestFromLight = IntersectionCand.getNorma();
+                    IntersectionPoint = this.lights.get(i).position;
+                    intersectionLight = this.lights.get(i);
+                }
+            }
+
+        }
+
+        if (intersectionLight == null) {
+            return null;
+        }
+        return new LightIntersection(intersectionLight, IntersectionPoint, minDestFromLight);
+    }
+
+    private Color getDiffuseColor(SurfaceIntersection surfaceInter) {
+        Color diffuseColor = new Color(0, 0, 0);
+        Material material = this.materials.get(surfaceInter.surface.getMaterialIndex() - 1);
+        for (int i = 0; i < this.lights.size(); i++) {
+            Color light = new Color(255, 255, 255);
+            light.multiplyRayColor(this.lights.get(i).color);
+            light.multiplyRayColor(material.diffuseColor);
+            Vector direction = new Vector(this.lights.get(i).position);
+            direction.substract(surfaceInter.intersection);
+            direction.normalize();
+            light.multiplyScalar(Math.abs(surfaceInter.surface.getNormalDirection(surfaceInter.intersection).dotProduct(direction)));
+            double hits = this.getLightHits(surfaceInter, direction, this.lights.get(i));
+            light.multiplyScalar(hits);
+            diffuseColor.add(light);
+        }
+
+        diffuseColor.normalizeColor();
+        return diffuseColor;
+    }
+
+    private Color getSpecularColor(SurfaceIntersection surfaceInter, Vector camDirection) {
+        Color specularColor = new Color(0, 0, 0);
+        Material material = this.materials.get(surfaceInter.surface.getMaterialIndex() - 1);
+
+        for (int i = 0; i < this.lights.size(); i++) {
+            Color light = new Color(255, 255, 255);
+            light.multiplyRayColor(this.lights.get(i).color);
+            light.multiplyRayColor(material.specularColor);
+            light.multiplyScalar(this.lights.get(i).specularIntens);
+            Vector direction = new Vector(this.lights.get(i).position);
+            direction.substract(surfaceInter.intersection);
+            direction.normalize();
+
+            Ray inRay = new Ray(this.lights.get(i).position, direction);
+            Ray r = surfaceInter.surface.getReflectionRay(surfaceInter.intersection, inRay);
+            r.direction.normalize();
+
+            //TODO check it
+            if (surfaceInter.surface.getClass().getName().equals("Plane"))
+                r.direction.negative();
+
+            Vector k = new Vector(camDirection);
+            k.normalize();
+            double angle = r.direction.dotProduct(k);
+            if (angle < 0)
+                light.multiplyScalar(0);
+
+            light.multiplyScalar(Math.pow(Math.abs(angle), material.phongSpecularity));
+            double hits = this.getLightHits(surfaceInter, direction, this.lights.get(i));
+            light.multiplyScalar(hits);
+            specularColor.add(light);
+        }
+        specularColor.normalizeColor();
+        return specularColor;
+    }
+
+    private double getLightHits(SurfaceIntersection surfaceInter, Vector direction, Light light) {
+        Random rnd = new Random();
+
+        double hits = 0;
+        Vector u = new Vector(this.camera.upVector);
+        u.crossProduct(direction);
+        u.normalize();
+        Vector w = new Vector(direction);
+        w.crossProduct(u);
+        w.normalize();
+        assert w.dotProduct(u) == w.dotProduct(direction) && w.dotProduct(u) == u.dotProduct(direction) && w.dotProduct(u) == 0;
+        u.multiplyByScalar(light.lightRadius);
+        w.multiplyByScalar(light.lightRadius);
+        Vector uStep = new Vector(u);
+        uStep.multiplyByScalar(1 / (double) this.scene.shadowRays);
+        Vector wStep = new Vector(w);
+        wStep.multiplyByScalar(1 / (double) this.scene.shadowRays);
+        Vector lightPosition = light.position;
+        Vector topLeftCorner = new Vector(lightPosition);
+        u.multiplyByScalar(0.5);
+        topLeftCorner.substract(u);
+        u.multiplyByScalar(2);
+        w.multiplyByScalar(0.5);
+        topLeftCorner.substract(w);
+        w.multiplyByScalar(2);
+        for (int j = 0; j < this.scene.shadowRays; j++) {
+            for (int k = 0; k < this.scene.shadowRays; k++) {
+                Vector randUStep = new Vector(uStep);
+                Vector randWStep = new Vector(wStep);
+                randUStep.multiplyByScalar(rnd.nextDouble());
+                randWStep.multiplyByScalar(rnd.nextDouble());
+                topLeftCorner.add(randUStep);
+                topLeftCorner.add(randWStep);
+                Surface closerSurface = this.isVisible(null, surfaceInter.intersection, topLeftCorner);
+                if (closerSurface == null)
+                    hits++;
+                else {
+                    double transparency = getTransparency(null, surfaceInter.intersection, topLeftCorner);
+                    hits += transparency;
+                }
+                topLeftCorner.substract(randUStep);
+                topLeftCorner.substract(randWStep);
+                topLeftCorner.add(wStep);
+            }
+            topLeftCorner.add(uStep);
+            topLeftCorner.substract(w);
+        }
+        double fraction = hits / (Math.pow(this.scene.shadowRays, 2));
+        hits = (fraction * light.shadowIntens) + (1 - light.shadowIntens);
+        return hits;
+
+    }
+
+    private double getTransparency(Surface surface, Vector start, Vector end) {
+        double transparency = 1;
+        Vector direction = new Vector(end);
+        Vector startCopy = new Vector(start);
+        direction.substract(startCopy);
+        Vector e = new Vector(direction);
+        e.normalize();
+        e.multiplyByScalar(0.001);
+        startCopy.add(e);
+        Ray ray = new Ray(startCopy, new Vector(direction));
+
+        Vector intersectionPointCand;
+        for (int i = 0; i < this.surfaces.size(); i++) {
+            if (surface == this.surfaces.get(i)) {
+                continue;
+            }
+            intersectionPointCand = this.surfaces.get(i).getItersectionPointWithRay(ray);
+            if (intersectionPointCand != null) {
+                transparency *= this.materials.get(this.surfaces.get(i).getMaterialIndex() - 1).transparency;
+            }
+        }
+        return transparency;
+    }
+
+    private Surface isVisible(Surface surface, Vector start, Vector end) {
+        Vector direction = new Vector(end);
+        Vector startCopy = new Vector(start);
+        direction.substract(startCopy);
+
+        Vector e = new Vector(direction);
+        e.normalize();
+        e.multiplyByScalar(0.001);
+        startCopy.add(e);
+        Ray ray = new Ray(startCopy, direction);
+        SurfaceIntersection surfaceInter = this.findClosestIntersectionWithSurface(ray, surface);
+
+        direction = new Vector(end);
+        direction.substract(startCopy);
+        double dist = direction.getNorma();
+
+        if (surfaceInter != null) {
+            if (surfaceInter.dist < dist)
+                return surfaceInter.surface;
+        }
+        return null;
     }
 
     public static class RayTracerException extends Exception {
@@ -279,6 +579,4 @@ public class RayTracer {
             super(msg);
         }
     }
-
-
 }

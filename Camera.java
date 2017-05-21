@@ -26,7 +26,7 @@ public class Camera {
         this.screenWidth = screenWidth;
     }
 
-    public Vector getCenterofScreen() {
+    public Vector getCenterOfScreen() {
         Vector center = new Vector(this.direction);
         center.normalize();
         center.multiplyByScalar(this.screenDistance);
