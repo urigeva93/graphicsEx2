@@ -27,6 +27,7 @@ public class Plane implements Surface {
         }
         Vector temp = new Vector(this.pointPlane);
         temp.substract(ray.start);
+
         double t = temp.dotProduct(this.N) / (ray.direction.dotProduct(this.N));
         if (t < 0)
             return null;

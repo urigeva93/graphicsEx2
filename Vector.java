@@ -85,23 +85,5 @@ public class Vector {
 		this.y *= other.y;
 		this.z *= other.z;
 	}
-	
-	public void multiplyByMatrix(Matrix M)
-	{
-		double[] temp = new double[3];
-		
-		//compute multiplication using homogenic cordinates
-		for(int i = 0; i < 3; i ++)
-			temp[i] = M.mat[i][0] * this.x + M.mat[i][1] * this.y + M.mat[i][2] * this.z + M.mat[i][3] * 1;
-		
-		this.x = temp[0];
-		this.y = temp[1];
-		this.z = temp[2];
-	}
-	
-	public void rotateVector(int dim, double deg) {
-		Matrix rotateMat = new Matrix(dim, deg);
-		this.multiplyByMatrix(rotateMat);
-	}
 
 }

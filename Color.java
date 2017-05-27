@@ -27,6 +27,7 @@ public class Color {
         this.green += other.green;
     }
 
+
     public void multiplyRayColor(RayColor raycolor) {
         this.red *= raycolor.red;
         this.blue *= raycolor.blue;

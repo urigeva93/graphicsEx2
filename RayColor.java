@@ -1,5 +1,3 @@
-import java.awt.*;
-
 public class RayColor {
     double red;
     double green;

@@ -18,9 +18,6 @@ public class Sphere implements Surface {
     //implements as shown in presentation "LS_Raycasting" geometric version
     public Vector getItersectionPointWithRay(Ray ray) {
 
-        // check if the ray starts from inside the sphere
-        // if True, then the ray won't intersect with it
-
         Vector start = new Vector(ray.start);
         start.substract(this.center);
         if (start.getNorma() < this.radius - (this.radius / 100)) {

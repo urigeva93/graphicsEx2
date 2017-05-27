@@ -24,65 +24,51 @@ public class Triangle implements Surface {
 
     }
 
-    public Vector getItersectionPointWithRay(Ray ray){
-
+    public Vector getItersectionPointWithRay(Ray ray) {
         Plane pl = new Plane(this.N, this.N.dotProduct(this.v1), this.materialIndex);
         Vector intersectionP = pl.getItersectionPointWithRay(ray);
         if(intersectionP == null)
             return null;
 
-        //check if inside triangle
+        //first side
+        Vector edge1 = new Vector(this.v2);
+        edge1.substract(this.v1);
 
-        //side 1 - v1, v2
-        Vector v1Copy = new Vector(this.v1);
-        Vector v2Copy = new Vector(this.v2);
-        v1Copy.substract(ray.start);
-        v2Copy.substract(ray.start);
-        v2Copy.crossProduct(v1Copy);
-        Vector N = new Vector(v2Copy);
-        N.normalize();
-
-        Vector tmp = new Vector(intersectionP);
-        tmp.substract(ray.start);
-        if (tmp.dotProduct(N) < 0)
+        Vector r1 = new Vector(intersectionP);
+        r1.substract(this.v1);
+        edge1.crossProduct(r1);
+        if(this.N.dotProduct(edge1) < 0)
             return null;
 
-        //side 2 - v2, v3
-        v2Copy = new Vector(this.v2);
-        Vector v3Copy = new Vector(this.v3);
-        v2Copy.substract(ray.start);
-        v3Copy.substract(ray.start);
-        v3Copy.crossProduct(v2Copy);
-        N = new Vector(v3Copy);
-        N.normalize();
+        //second side
+        Vector edge2 = new Vector(this.v3);
+        edge2.substract(this.v2);
 
-        tmp = new Vector(intersectionP);
-        tmp.substract(ray.start);
-        if (tmp.dotProduct(N) < 0)
+        Vector r2 = new Vector(intersectionP);
+        r2.substract(this.v2);
+        edge2.crossProduct(r2);
+        if(this.N.dotProduct(edge2) < 0)
             return null;
 
-        //side 3 - v1, v3
-        v1Copy = new Vector(this.v1);
-        v3Copy = new Vector(this.v3);
-        v1Copy.substract(ray.start);
-        v3Copy.substract(ray.start);
-        v3Copy.crossProduct(v1Copy);
-        N = new Vector(v3Copy);
-        N.normalize();
+        //third side
+        Vector edge3 = new Vector(this.v1);
+        edge3.substract(this.v3);
 
-        tmp = new Vector(intersectionP);
-        tmp.substract(ray.start);
-        if (tmp.dotProduct(N) < 0)
+        Vector r3 = new Vector(intersectionP);
+        r3.substract(this.v3);
+        edge3.crossProduct(r3);
+        if(this.N.dotProduct(edge3) < 0)
             return null;
 
-        //the insersectionP is inside
+        //point is inside triangle
         return intersectionP;
+
     }
 
     public Ray getReflectionRay(Vector intersectionPoint, Ray inRay) {
         //identical to sphere
         Vector No = new Vector(this.N);
-        No.normalize(); // normalize the normal
+        No.normalize(); //
         No.multiplyByScalar(2 * (No.dotProduct(inRay.direction)));
         Vector reflectionDirec = new Vector(inRay.direction);
         reflectionDirec.substract(No);

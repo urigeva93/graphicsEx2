@@ -13,7 +13,6 @@ public class Light {
         this.lightRadius = lightRaduis;
     }
 
-    //TODO
     public Boolean hasItersectionPointWithRay(Ray r) {
 
         Vector positionNorm = new Vector(this.position);

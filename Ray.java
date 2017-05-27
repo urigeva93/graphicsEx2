@@ -6,7 +6,6 @@ public class Ray {
     public Ray(Vector start, Vector direction) {
         this.start = start;
         this.direction = direction;
-        // assuming the direction is from the start
         this.direction.normalize();
     }
 
