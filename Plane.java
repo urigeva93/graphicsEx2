@@ -43,7 +43,7 @@ public class Plane implements Surface {
 
         //identical to sphere
         Vector No = new Vector(this.N);
-        No.normalize(); // normalize the normal
+        No.normalize();
         No.multiplyByScalar(2 * (No.dotProduct(inRay.direction)));
         Vector reflectionDirec = new Vector(inRay.direction);
         reflectionDirec.substract(No);

@@ -8,6 +8,4 @@ public class SurfaceIntersection {
         this.intersection = intersection;
         this.dist = distance;
     }
-
-
 }

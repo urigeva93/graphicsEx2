@@ -51,6 +51,7 @@ public class Sphere implements Surface {
         // normal to the sphere at intersection point
         //R = inRay - 2(inRay * N)N
         Vector N = this.getNormalDirection(intersectionP);
+        N.normalize();
         Vector reflectionDirec = new Vector(N);
         reflectionDirec.multiplyByScalar(2 * N.dotProduct(inRay.direction));
         reflectionDirec.substract(inRay.direction);

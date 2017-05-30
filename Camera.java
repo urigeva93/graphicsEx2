@@ -19,9 +19,9 @@ public class Camera {
 
         // fix the up vector to be perpendicular to the direction
         this.upVector = new Vector(upVector);
-        Vector temp = new Vector(this.direction);
-        temp.multiplyByScalar(temp.dotProduct(upVector));
-        this.upVector.substract(temp);
+        Vector tmp = new Vector(this.direction);
+        tmp.multiplyByScalar(tmp.dotProduct(upVector));
+        this.upVector.substract(tmp);
         this.screenDistance = screenDistance;
         this.screenWidth = screenWidth;
     }

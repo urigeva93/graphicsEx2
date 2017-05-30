@@ -42,13 +42,6 @@ public class Vector {
 		return Math.sqrt(this.getNormSquared());
 	}
 
-	// compute the distance from this to p
-	public double distToPoint(Vector p) {
-		Vector delta = new Vector(p);
-		delta.substract(this);
-		return delta.getNorma();
-	}
-
 	public void normalize() {
 		double length = this.getNorma();
 		if (length == 0) {
@@ -78,12 +71,6 @@ public class Vector {
 		this.x = x;
 		this.y = y;
 		this.z = z;
-	}
-	
-	public void multiplyByVector(Vector other) {
-		this.x *= other.x;
-		this.y *= other.y;
-		this.z *= other.z;
 	}
 
 }
