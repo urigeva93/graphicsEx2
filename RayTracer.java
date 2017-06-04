@@ -251,28 +251,34 @@ public class RayTracer {
         byte[] rgbData = new byte[this.imageWidth * this.imageHeight * 3];
         Ray ray;
         Color pixel;
+        boolean flagSuperSampling = (this.scene.superSamplingLvl > 1) ? true : false;
 
         for (int i = 0; i < this.imageWidth; i++) {
             for (int j = 0; j < this.imageHeight; j++) {
 
-               /* ray = constructRayThroughPixel(camera, i, j);
-                pixel = getPixelColor(ray, this.scene.maxRecLvl, null);
-                rgbData[(j * this.imageWidth + i) * 3] = (byte) pixel.red;
-                rgbData[(j * this.imageWidth + i) * 3 + 1] = (byte) pixel.green;
-                rgbData[(j * this.imageWidth + i) * 3 + 2] = (byte) pixel.blue;*/
+                if (!flagSuperSampling) {
 
-                //cpmpute pixel color based SuperSampling
-                Color completePixel = new Color(0, 0, 0);
-                List<Ray> rayList = constructRayThroughPixelWithSampling(camera, i, j, this.scene.superSamplingLvl);
-                for (int k = 0; k < rayList.size(); k++) {
-                    pixel = getPixelColor(rayList.get(k), this.scene.maxRecLvl, null);
-                    completePixel.add(pixel);
+                    //compute pixel color without SuperSampling
+                    ray = constructRayThroughPixel(camera, i, j);
+                    pixel = getPixelColor(ray, this.scene.maxRecLvl, null);
+                    rgbData[(j * this.imageWidth + i) * 3] = (byte) pixel.red;
+                    rgbData[(j * this.imageWidth + i) * 3 + 1] = (byte) pixel.green;
+                    rgbData[(j * this.imageWidth + i) * 3 + 2] = (byte) pixel.blue;
+                } else {
+
+                    //compute pixel color based SuperSampling
+                    Color completePixel = new Color(0, 0, 0);
+                    List<Ray> rayList = constructRayThroughPixelWithSampling(camera, i, j, this.scene.superSamplingLvl);
+                    for (int k = 0; k < rayList.size(); k++) {
+                        pixel = getPixelColor(rayList.get(k), this.scene.maxRecLvl, null);
+                        completePixel.add(pixel);
+                    }
+                    completePixel.multiplyScalar(1.0 / (this.scene.superSamplingLvl * this.scene.superSamplingLvl));
+
+                    rgbData[(j * this.imageWidth + i) * 3] = (byte) completePixel.red;
+                    rgbData[(j * this.imageWidth + i) * 3 + 1] = (byte) completePixel.green;
+                    rgbData[(j * this.imageWidth + i) * 3 + 2] = (byte) completePixel.blue;
                 }
-                completePixel.multiplyScalar(1.0 / (this.scene.superSamplingLvl * this.scene.superSamplingLvl));
-
-                rgbData[(j * this.imageWidth + i) * 3] = (byte) completePixel.red;
-                rgbData[(j * this.imageWidth + i) * 3 + 1] = (byte) completePixel.green;
-                rgbData[(j * this.imageWidth + i) * 3 + 2] = (byte) completePixel.blue;
             }
 
         }
@@ -339,8 +345,8 @@ public class RayTracer {
                 while (randY == 0 || randY == 1)
                     randY = rnd.nextDouble();
 
-                double deltaX = ((double) this.imageWidth / 2 - (i+((k+randX)/superSamplingLvl))) * pixelWidth;
-                double deltaY = ((double) this.imageHeight / 2 - (j+((l+randY)/superSamplingLvl))) * pixelHeight;
+                double deltaX = ((double) this.imageWidth / 2 - (i + ((k + randX) / superSamplingLvl))) * pixelWidth;
+                double deltaY = ((double) this.imageHeight / 2 - (j + ((l + randY) / superSamplingLvl))) * pixelHeight;
 
                 Vector yVec = new Vector(camera.upVector);
                 yVec.normalize();
@@ -370,12 +376,11 @@ public class RayTracer {
 
         Vector intersectionPointWithSurface = null;
         SurfaceIntersection surfaceInter = this.findClosestIntersectionWithSurface(ray, originSurface);
-        //LightIntersection lightInter = this.findClosestIntersectionWithLight(ray);
 
         if (surfaceInter != null)
             intersectionPointWithSurface = surfaceInter.intersection;
 
-        Boolean ifSurface = intersectionPointWithSurface != null;
+        Boolean ifSurface = (intersectionPointWithSurface != null);
 
         if (ifSurface) {
 
@@ -498,11 +503,9 @@ public class RayTracer {
             Ray r = surfaceInter.surface.getReflectionRay(surfaceInter.intersection, inRay);
             r.direction.normalize();
 
-
-            //check it
             if (surfaceInter.surface.getClass().getName().equals("Plane") ||
-                surfaceInter.surface.getClass().getName().equals("Triangle"))
-            r.direction.negative();
+                    surfaceInter.surface.getClass().getName().equals("Triangle"))
+                r.direction.negative();
 
             Vector k = new Vector(camDirection);
             k.normalize();
@@ -575,9 +578,9 @@ public class RayTracer {
         Vector direction = new Vector(end);
         Vector startCopy = new Vector(start);
         direction.substract(startCopy);
-        Vector e = new Vector(direction);
+        Vector e = new Vector(direction); // epsilon vector
         e.normalize();
-        e.multiplyByScalar(0.001);
+        e.multiplyByScalar(0.00001);
         startCopy.add(e);
         Ray ray = new Ray(startCopy, new Vector(direction));
 
@@ -599,9 +602,9 @@ public class RayTracer {
         Vector startCopy = new Vector(start);
         direction.substract(startCopy);
 
-        Vector e = new Vector(direction);
+        Vector e = new Vector(direction); // epsilon vecto
         e.normalize();
-        e.multiplyByScalar(0.001);
+        e.multiplyByScalar(0.00001);
         startCopy.add(e);
         Ray ray = new Ray(startCopy, direction);
         SurfaceIntersection surfaceInter = this.findClosestIntersectionWithSurface(ray, surface);
